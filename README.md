@@ -2,7 +2,7 @@
 
 Este repositório contém a solução para o desafio técnico de backend da Quark Solutions. O objetivo principal foi construir um sistema resiliente para gestão de leads comerciais, integrando enriquecimento de dados via API externa e classificação assistida por Inteligência Artificial (Ollama), orquestrado de forma assíncrona.
 
-## Stack Tecnológica
+## Tecnologias
 
 A stack foi escolhida com foco em produtividade, tipagem forte e robustez, seguindo os requisitos do desafio:
 
@@ -24,7 +24,7 @@ O maior risco do desafio não era o CRUD, mas garantir a consistência dos dados
 
 Para não travar as requisições HTTP, a API apenas aceita o lead (HTTP 202 Accepted) e delega o processamento.
 
-Decisão Crítica: Disparar o enriquecimento e a classificação simultaneamente geraria uma condição de corrida (race condition), pois a IA precisa dos dados enriquecidos (faturamento, funcionários) para calcular um score preciso.
+Decisão Crítica: Disparar o enriquecimento e a classificação simultaneamente geraria uma condição de corrida, pois a IA precisa dos dados enriquecidos (faturamento, funcionários) para calcular um score preciso.
 Solução: Implementei um fluxo encadeado (Pipeline).
 1. O Lead é criado e publicado na fila de `enrichment`.
 2. O Worker de Enriquecimento processa os dados.
@@ -64,7 +64,7 @@ Para evitar que uma requisição concorrente tente classificar um lead que ainda
 
 Modelos pequenos como o `tinyllama` são eficientes, mas podem ignorar instruções do prompt.
 - Prompt Engineering: O Ollama é configurado para forçar o output em formato JSON (`format: 'json'`).
-- Validação de Schema (Zod): O retorno da IA passa por um parser rigoroso. Se o modelo omitir campos obrigatórios (`score`, `classification`) ou inventar valores fora dos enums permitidos, a execução é marcada como `FAILED` de forma graciosa, sem derrubar o worker.
+- Validação de Schema (Zod): O retorno da IA passa por um parser rigoroso. Se o modelo omitir campos obrigatórios (`score`, `classification`) ou inventar valores fora dos enums permitidos, a execução é marcada como `FAILED`, sem derrubar o worker.
 
 ### 5. Histórico Imutável (Event Sourcing "Light")
 
