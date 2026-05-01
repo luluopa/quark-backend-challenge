@@ -70,6 +70,13 @@ Modelos pequenos como o `tinyllama` são eficientes, mas podem ignorar instruç�
 
 Para atender ao requisito de rastreabilidade, em vez de sobrescrever os dados do lead, optei por tabelas separadas para `Enrichment` e `AiClassification`. Cada reprocessamento insere um novo registro, permitindo auditar a evolução do score e comparar execuções ao longo do tempo.
 
+### 6. Estratégia de Armazenamento Híbrido (Relacional + Documento)
+
+Um dos maiores desafios do enriquecimento de dados é a heterogeneidade: um lead pode ter 10 sócios e 3 endereços, enquanto outro pode não ter nenhum. Criar colunas fixas para tudo geraria tabelas esparsas (sparse tables) difíceis de manter.
+A solução adotada foi um modelo híbrido no PostgreSQL:
+- Colunas Fixas (Schema-on-Write): Dados essenciais e previsíveis (como `annualRevenue`, `employeeCount`, `industry`) possuem colunas tipadas. Isso garante integridade e permite consultas analíticas rápidas (ex: `WHERE annualRevenue > 1000000`).
+- Campos JSONB (Schema-on-Read): Dados estruturais variáveis (como `partners`, `cnaes`, `address`) são armazenados em colunas `JSONB`. O PostgreSQL lida com JSONB nativamente em formato binário, permitindo indexação interna sem engessar o schema. Se o provedor de dados mudar a estrutura amanhã, o banco não quebra e não exige migrations complexas.
+
 ## Modelagem de Dados
 
 O schema foi desenhado para suportar o histórico completo de execuções, mantendo a integridade referencial.
@@ -103,11 +110,11 @@ erDiagram
         int employeeCount
         decimal annualRevenue
         timestamp foundedAt
-        json address
-        json cnaes
-        json partners
-        json phones
-        json emails
+        jsonb address "Dados variáveis"
+        jsonb cnaes "Dados variáveis"
+        jsonb partners "Dados variáveis"
+        jsonb phones "Dados variáveis"
+        jsonb emails "Dados variáveis"
         timestamp requestedAt
         timestamp completedAt
         enum status "SUCCESS | FAILED"
