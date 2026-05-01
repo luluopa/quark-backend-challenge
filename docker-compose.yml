@@ -47,6 +47,24 @@ services:
     ports:
       - "4000:4000"
 
+  api:
+    build:
+      context: .
+    container_name: quark_api
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mock-api:
+        condition: service_started
+      ollama:
+        condition: service_started
+
 volumes:
   postgres_data:
   ollama_data:

@@ -166,10 +166,11 @@ docker compose logs -f ollama
 ```
 
 ### 3. Banco de Dados (Migrations e Seed)
-Com os containers rodando, execute as migrations e popule o banco com leads de teste (CNPJs válidos):
+O container da API já executa as migrations automaticamente ao subir (`npx prisma migrate deploy`). 
+
+Para popular o banco com leads de teste (CNPJs válidos), execute o comando de seed dentro do container da API:
 
 ```bash
-docker compose exec api npx prisma migrate deploy
 docker compose exec api npm run db:seed
 ```
 
