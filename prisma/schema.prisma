@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  PAID_ADS
+  ORGANIC
+  OTHER
+}
+
+enum LeadStatus {
+  PENDING
+  ENRICHING
+  ENRICHED
+  CLASSIFYING
+  CLASSIFIED
+  FAILED
+}
+
+enum ExecutionStatus {
+  SUCCESS
+  FAILED
+}
+
+enum ClassificationType {
+  HOT
+  WARM
+  COLD
+}
+
+enum CommercialPotential {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model Lead {
+  id             String     @id @default(uuid())
+  fullName       String
+  email          String     @unique
+  phone          String
+  companyName    String
+  companyCnpj    String     @unique
+  companyWebsite String?
+  estimatedValue Decimal?   @db.Decimal(10, 2)
+  source         LeadSource
+  notes          String?
+  status         LeadStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrichments     Enrichment[]
+  classifications AiClassification[]
+
+  @@map("leads")
+}
+
+model Enrichment {
+  id            String   @id @default(uuid())
+  leadId        String
+  lead          Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  // Dados Fixos (Schema-on-Write)
+  companyName   String?
+  tradeName     String?
+  cnpj          String?
+  industry      String?
+  legalNature   String?
+  employeeCount Int?
+  annualRevenue Decimal? @db.Decimal(15, 2)
+  foundedAt     DateTime?
+
+  // Dados Variáveis (Schema-on-Read / JSONB)
+  address       Json?    @db.JsonB
+  cnaes         Json?    @db.JsonB
+  partners      Json?    @db.JsonB
+  phones        Json?    @db.JsonB
+  emails        Json?    @db.JsonB
+
+  // Metadados de Execução
+  requestedAt   DateTime @default(now())
+  completedAt   DateTime?
+  status        ExecutionStatus
+  errorMessage  String?
+
+  createdAt     DateTime @default(now())
+
+  @@map("enrichments")
+}
+
+model AiClassification {
+  id                  String              @id @default(uuid())
+  leadId              String
+  lead                Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  score               Int?
+  classification      ClassificationType?
+  justification       String?
+  commercialPotential CommercialPotential?
+  modelUsed           String?
+
+  // Metadados de Execução
+  requestedAt         DateTime @default(now())
+  completedAt         DateTime?
+  status              ExecutionStatus
+  errorMessage        String?
+
+  createdAt           DateTime @default(now())
+
+  @@map("ai_classifications")
+}
