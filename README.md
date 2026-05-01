@@ -1,1 +1,213 @@
-Quark Backend Challenge
+# Backend Challenge - Enriquecimento e Classificação de Leads com IA
+
+Este repositório contém a solução para o desafio técnico de backend da Quark Solutions. O objetivo principal foi construir um sistema resiliente para gestão de leads comerciais, integrando enriquecimento de dados via API externa e classificação assistida por Inteligência Artificial (Ollama), orquestrado de forma assíncrona.
+
+## Stack Tecnológica
+
+A stack foi escolhida com foco em produtividade, tipagem forte e robustez, seguindo os requisitos do desafio:
+
+- Runtime: Node.js (v20) + TypeScript
+- Framework: NestJS (v11) - Escolhido pela arquitetura opinativa e injeção de dependências nativa.
+- Persistência: PostgreSQL (v16) + Prisma ORM - Tipagem forte gerada a partir do schema, evitando erros em tempo de execução.
+- Mensageria: RabbitMQ - O coração do processamento assíncrono.
+- IA Local: Ollama rodando o modelo `tinyllama` - Leve, rápido e não depende de chaves de API externas.
+- Qualidade e Testes: Vitest (mais rápido que o Jest padrão) e ESLint/Prettier.
+- Infraestrutura: Docker e Docker Compose.
+
+---
+
+## Arquitetura e Decisões de Design
+
+O maior risco do desafio não era o CRUD, mas garantir a consistência dos dados frente a falhas de APIs externas ou retornos malformados da IA. As decisões abaixo mitigam esses riscos:
+
+### 1. Processamento Assíncrono e Orquestração (Pipeline)
+
+Para não travar as requisições HTTP, a API apenas aceita o lead (HTTP 202 Accepted) e delega o processamento.
+
+Decisão Crítica: Disparar o enriquecimento e a classificação simultaneamente geraria uma condição de corrida (race condition), pois a IA precisa dos dados enriquecidos (faturamento, funcionários) para calcular um score preciso.
+Solução: Implementei um fluxo encadeado (Pipeline).
+1. O Lead é criado e publicado na fila de `enrichment`.
+2. O Worker de Enriquecimento processa os dados.
+3. Apenas em caso de sucesso, o próprio worker publica a mensagem na fila de `classification`.
+
+```mermaid
+flowchart TD
+    Client["Cliente REST"] -->|POST /leads| API["NestJS API"]
+    API -->|Salva PENDING| DB[(PostgreSQL)]
+    API -->|Publica| Q_Enrich["Fila: lead.enrichment"]
+    
+    Q_Enrich --> W_Enrich["Worker: Enrichment"]
+    W_Enrich -->|Consulta| MockAPI["Mock API Externa"]
+    W_Enrich -->|Atualiza ENRICHED| DB
+    W_Enrich -->|Publica (Sucesso)| Q_Class["Fila: lead.classification"]
+    
+    Q_Class --> W_Class["Worker: Classification"]
+    W_Class -->|Prompt JSON| Ollama["Ollama (tinyllama)"]
+    W_Class -->|Valida Schema Zod| W_Class
+    W_Class -->|Atualiza CLASSIFIED| DB
+```
+
+### 2. Resiliência com RabbitMQ (DLX/DLQ)
+
+Sistemas distribuídos falham. Para não perder leads:
+- O controle de canal é feito via `amqp-connection-manager`.
+- Implementação de Dead Letter Exchanges (DLX) e Dead Letter Queues (DLQ).
+- Erros de negócio (ex: IA retornou lixo irrecuperável) geram status `FAILED` e a mensagem recebe `ack`.
+- Erros de infraestrutura (ex: banco indisponível, timeout de rede) geram `nack` e a mensagem é roteada para a DLQ, permitindo reprocessamento posterior sem travar a fila principal.
+
+### 3. Máquina de Estados (State Machine)
+
+Um lead possui um ciclo de vida estrito: `PENDING` -> `ENRICHING` -> `ENRICHED` -> `CLASSIFYING` -> `CLASSIFIED`.
+Para evitar que uma requisição concorrente tente classificar um lead que ainda está sendo enriquecido, as transições são validadas atomicamente antes de qualquer atualização no banco, garantindo a consistência do domínio.
+
+### 4. Tratamento de "Alucinações" da IA
+
+Modelos pequenos como o `tinyllama` são eficientes, mas podem ignorar instruções do prompt.
+- Prompt Engineering: O Ollama é configurado para forçar o output em formato JSON (`format: 'json'`).
+- Validação de Schema (Zod): O retorno da IA passa por um parser rigoroso. Se o modelo omitir campos obrigatórios (`score`, `classification`) ou inventar valores fora dos enums permitidos, a execução é marcada como `FAILED` de forma graciosa, sem derrubar o worker.
+
+### 5. Histórico Imutável (Event Sourcing "Light")
+
+Para atender ao requisito de rastreabilidade, em vez de sobrescrever os dados do lead, optei por tabelas separadas para `Enrichment` e `AiClassification`. Cada reprocessamento insere um novo registro, permitindo auditar a evolução do score e comparar execuções ao longo do tempo.
+
+## Modelagem de Dados
+
+O schema foi desenhado para suportar o histórico completo de execuções, mantendo a integridade referencial.
+
+```mermaid
+erDiagram
+    Lead {
+        uuid id PK
+        varchar fullName
+        varchar email UK "Imutável"
+        varchar phone
+        varchar companyName
+        varchar companyCnpj UK "Imutável"
+        varchar companyWebsite
+        decimal estimatedValue
+        enum source
+        varchar notes
+        enum status
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    Enrichment {
+        uuid id PK
+        uuid leadId FK
+        varchar companyName
+        varchar tradeName
+        varchar cnpj
+        varchar industry
+        varchar legalNature
+        int employeeCount
+        decimal annualRevenue
+        timestamp foundedAt
+        json address
+        json cnaes
+        json partners
+        json phones
+        json emails
+        timestamp requestedAt
+        timestamp completedAt
+        enum status "SUCCESS | FAILED"
+        varchar errorMessage
+        timestamp createdAt
+    }
+
+    AiClassification {
+        uuid id PK
+        uuid leadId FK
+        int score
+        enum classification "Hot | Warm | Cold"
+        varchar justification
+        enum commercialPotential "High | Medium | Low"
+        varchar modelUsed
+        timestamp requestedAt
+        timestamp completedAt
+        enum status "SUCCESS | FAILED"
+        varchar errorMessage
+        timestamp createdAt
+    }
+
+    Lead ||--o{ Enrichment : "possui histórico de"
+    Lead ||--o{ AiClassification : "possui histórico de"
+```
+
+---
+
+## Como executar o projeto
+
+A infraestrutura foi totalmente containerizada para facilitar a execução.
+
+### 1. Clonar o repositório
+```bash
+git clone https://github.com/seu-usuario/backend_challenge.git
+cd backend_challenge
+```
+
+### 2. Subir a infraestrutura
+Este comando fará o build da API e iniciará o PostgreSQL, RabbitMQ, Mock API e Ollama.
+
+```bash
+docker compose up -d
+```
+
+Atenção: Na primeira execução, o container do Ollama fará o download do modelo `tinyllama` (~637MB). O tempo dependerá da sua conexão. Acompanhe o progresso com:
+```bash
+docker compose logs -f ollama
+```
+
+### 3. Banco de Dados (Migrations e Seed)
+Com os containers rodando, execute as migrations e popule o banco com leads de teste (CNPJs válidos):
+
+```bash
+docker compose exec api npx prisma migrate deploy
+docker compose exec api npm run db:seed
+```
+
+### 4. Acessando a API
+A API estará disponível em `http://localhost:3000`.
+Para acompanhar os logs da aplicação:
+```bash
+docker compose logs -f api
+```
+
+---
+
+## Rodando os Testes
+
+O projeto utiliza o Vitest para testes unitários e de integração.
+
+```bash
+# Executar testes
+docker compose exec api npm run test
+
+# Executar testes com relatório de cobertura
+docker compose exec api npm run test:cov
+```
+
+---
+
+## Endpoints Principais
+
+### Leads
+- `POST /leads` - Cria um novo lead (dispara o enriquecimento automaticamente).
+- `GET /leads` - Lista os leads. Suporta paginação (`?page=1&limit=10`) e filtros (`?search=termo&source=WEBSITE`).
+- `GET /leads/:id` - Traz os detalhes do lead, incluindo o histórico de enriquecimento e classificação.
+- `PATCH /leads/:id` - Atualiza dados (exceto `email` e `companyCnpj`, que são imutáveis).
+- `GET /leads/export` - Rota dedicada para exportação dos dados consolidados.
+
+### Fluxos Assíncronos (Reprocessamento)
+- `POST /leads/:id/enrichment` - Solicita um novo enriquecimento.
+- `POST /leads/:id/classification` - Solicita uma nova classificação pela IA.
+
+---
+
+## Melhorias Futuras (Visão de Produção)
+
+Para um ambiente produtivo de alta escala, as seguintes melhorias seriam implementadas:
+1. Cache (Redis): Evitar chamadas repetidas à API de enriquecimento para o mesmo CNPJ em curtos períodos.
+2. Autenticação e Autorização: Proteger os endpoints com JWT e RBAC (Role-Based Access Control).
+3. Observabilidade (Prometheus/Grafana): Monitorar o tempo médio de resposta do Ollama e a taxa de falhas de parsing do JSON. Modelos estocásticos exigem monitoramento contínuo.
+4. Rate Limiting: Proteger a API contra abusos, especialmente nas rotas que disparam processamento em background.
