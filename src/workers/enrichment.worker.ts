@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import axios from 'axios';
 import * as amqp from 'amqplib';
+import { Prisma } from '@prisma/client';
 
 interface EnrichmentMessage {
   leadId: string;
@@ -71,11 +72,11 @@ export class EnrichmentWorker implements OnModuleInit {
                   foundedAt: data.foundedAt
                     ? new Date(String(data.foundedAt))
                     : null,
-                  address: data.address as Record<string, unknown>,
-                  cnaes: data.cnaes as Record<string, unknown>[],
-                  partners: data.partners as Record<string, unknown>[],
-                  phones: data.phones as Record<string, unknown>[],
-                  emails: data.emails as Record<string, unknown>[],
+                  address: data.address as Prisma.InputJsonValue,
+                  cnaes: data.cnaes as Prisma.InputJsonValue,
+                  partners: data.partners as Prisma.InputJsonValue,
+                  phones: data.phones as Prisma.InputJsonValue,
+                  emails: data.emails as Prisma.InputJsonValue,
                   status: 'SUCCESS',
                   completedAt: new Date(),
                 },
