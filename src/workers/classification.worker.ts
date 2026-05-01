@@ -24,6 +24,14 @@ export class ClassificationWorker implements OnModuleInit {
   async onModuleInit() {
     await this.rabbitmqService.channelWrapper.addSetup(
       async (channel: amqp.ConfirmChannel) => {
+        await channel.assertQueue(CLASSIFICATION_QUEUE, {
+          durable: true,
+          arguments: {
+            'x-dead-letter-exchange': 'lead.dlx',
+            'x-dead-letter-routing-key': CLASSIFICATION_QUEUE,
+          },
+        });
+
         await channel.consume(
           CLASSIFICATION_QUEUE,
           // eslint-disable-next-line @typescript-eslint/no-misused-promises
