@@ -39,7 +39,7 @@ flowchart TD
     Q_Enrich --> W_Enrich["Worker: Enrichment"]
     W_Enrich -->|Consulta| MockAPI["Mock API Externa"]
     W_Enrich -->|Atualiza ENRICHED| DB
-    W_Enrich -->|Publica (Sucesso)| Q_Class["Fila: lead.classification"]
+    W_Enrich -->|Publica Sucesso| Q_Class["Fila: lead.classification"]
     
     Q_Class --> W_Class["Worker: Classification"]
     W_Class -->|Prompt JSON| Ollama["Ollama (tinyllama)"]
