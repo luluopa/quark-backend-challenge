@@ -174,6 +174,8 @@ Para popular o banco com leads de teste (CNPJs válidos), execute o comando de s
 docker compose exec api npm run db:seed
 ```
 
+*Dica de Desenvolvimento:* Se você quiser conectar um cliente de banco de dados (como DBeaver ou DataGrip) na sua máquina local, use `localhost:5432` com usuário `postgres` e senha `password`. Se quiser rodar comandos do Prisma localmente (ex: `npx prisma studio`), mude temporariamente o `DATABASE_URL` no seu arquivo `.env` de `postgres:5432` para `localhost:5432`.
+
 ### 4. Acessando a API (O Primeiro Request)
 A API estará disponível em `http://localhost:3000`.
 
