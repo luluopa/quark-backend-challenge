@@ -173,11 +173,33 @@ docker compose exec api npx prisma migrate deploy
 docker compose exec api npm run db:seed
 ```
 
-### 4. Acessando a API
+### 4. Acessando a API (O Primeiro Request)
 A API estará disponível em `http://localhost:3000`.
-Para acompanhar os logs da aplicação:
+
+Para testar o fluxo completo de ponta a ponta (Criação -> Enriquecimento -> Classificação), execute o seguinte comando no seu terminal:
+
+```bash
+curl -X POST http://localhost:3000/leads \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "João da Silva",
+    "email": "joao.silva@techcorp.com",
+    "phone": "+5511999991111",
+    "companyName": "Tech Corp",
+    "companyCnpj": "12345678000199",
+    "source": "WEBSITE"
+  }'
+```
+
+A API retornará um status `201 Created` quase instantaneamente. O trabalho pesado está acontecendo em background.
+Para acompanhar os logs da aplicação e ver os workers processando o lead:
 ```bash
 docker compose logs -f api
+```
+
+Após alguns segundos, você pode consultar o lead atualizado (substitua o ID pelo retornado no POST):
+```bash
+curl http://localhost:3000/leads/ID_DO_LEAD
 ```
 
 ---
@@ -208,6 +230,24 @@ docker compose exec api npm run test:cov
 ### Fluxos Assíncronos (Reprocessamento)
 - `POST /leads/:id/enrichment` - Solicita um novo enriquecimento.
 - `POST /leads/:id/classification` - Solicita uma nova classificação pela IA.
+
+---
+
+## Trade-offs e Limitações
+
+Toda arquitetura envolve escolhas. Abaixo estão os principais trade-offs assumidos nesta implementação:
+
+1. **Armazenamento Híbrido (JSONB) vs Colunas Fixas:**
+   - *Decisão:* Usar `JSONB` para dados variáveis de enriquecimento (como sócios e CNAEs).
+   - *Trade-off:* Ganhamos extrema flexibilidade para lidar com APIs externas que mudam de contrato, mas perdemos a capacidade de criar Foreign Keys (chaves estrangeiras) rígidas para esses dados específicos.
+
+2. **Ollama Local (tinyllama) vs API Proprietária (OpenAI/Anthropic):**
+   - *Decisão:* Usar um modelo local pequeno para cumprir o requisito do desafio sem gerar custos.
+   - *Trade-off:* O `tinyllama` é rápido, mas tem maior propensão a "alucinações" e quebra de formatação JSON comparado a modelos maiores. A mitigação foi o uso de validação estrita (Zod), mas em um ambiente de produção com orçamento, uma API externa gerenciada entregaria classificações mais precisas.
+
+3. **Polling vs Webhooks/SSE:**
+   - *Decisão:* O cliente precisa fazer um `GET /leads/:id` para verificar se o processamento assíncrono terminou.
+   - *Trade-off:* Mantém a arquitetura backend simples e focada nos workers. Em um cenário real de frontend reativo, a implementação de Webhooks ou Server-Sent Events (SSE) seria necessária para notificar o cliente em tempo real, mas adicionaria complexidade fora do escopo atual.
 
 ---
 
