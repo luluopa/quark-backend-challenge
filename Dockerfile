@@ -6,6 +6,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 COPY package*.json ./
+# Instalar TODAS as dependências (incluindo devDependencies para o build)
 RUN npm install
 
 COPY . .
@@ -13,7 +14,7 @@ COPY . .
 # Gerar o Prisma Client
 RUN npx prisma generate
 
-# Build da aplicação NestJS
+# Build da aplicação NestJS (Isso gera a pasta /app/dist)
 RUN npm run build
 
 EXPOSE 3000
