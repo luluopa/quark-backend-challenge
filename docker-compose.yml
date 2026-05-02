@@ -65,6 +65,14 @@ services:
       ollama:
         condition: service_started
 
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: quark_dozzle
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
 volumes:
   postgres_data:
   ollama_data:

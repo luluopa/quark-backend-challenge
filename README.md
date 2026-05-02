@@ -205,6 +205,20 @@ Após alguns segundos, você pode consultar o lead atualizado (substitua o ID pe
 curl http://localhost:3000/leads/ID_DO_LEAD
 ```
 
+### 5. Observabilidade
+
+Para facilitar a visualização do que está acontecendo no sistema, especialmente durante apresentações, duas ferramentas de observabilidade foram incluídas no cluster:
+
+**Dozzle (Visualizador de Logs em Tempo Real):**
+- Acesse: `http://localhost:8080`
+- O Dozzle permite ver os logs de todos os containers (API, Workers, Ollama, RabbitMQ) diretamente pelo navegador, com busca e filtros, sem precisar usar o terminal.
+
+**RabbitMQ Management UI (Monitoramento de Filas):**
+- Acesse: `http://localhost:15672`
+- Usuário: `guest`
+- Senha: `guest`
+- Através deste painel, você pode ver as mensagens trafegando entre as filas (`lead.enrichment`, `lead.classification`), verificar a taxa de processamento e inspecionar a Dead Letter Queue (DLQ) em caso de falhas. *(Nota: As credenciais padrão `guest/guest` são usadas apenas para o ambiente de desenvolvimento local).*
+
 ---
 
 ## Rodando os Testes
