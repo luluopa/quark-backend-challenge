@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { LeadsService } from './leads.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { RabbitmqService, ENRICHMENT_QUEUE } from '../rabbitmq/rabbitmq.service';
+import { LeadsService } from '../../../src/leads/leads.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RabbitmqService, ENRICHMENT_QUEUE } from '../../../src/rabbitmq/rabbitmq.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { LeadSource } from '@prisma/client';
 

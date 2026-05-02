@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { EnrichmentWorker } from './enrichment.worker';
-import { PrismaService } from '../prisma/prisma.service';
-import { RabbitmqService, CLASSIFICATION_QUEUE } from '../rabbitmq/rabbitmq.service';
+import { EnrichmentWorker } from '../../../src/workers/enrichment.worker';
+import { PrismaService } from '../../../src/prisma/prisma.service';
+import { RabbitmqService, CLASSIFICATION_QUEUE } from '../../../src/rabbitmq/rabbitmq.service';
 import axios from 'axios';
 import * as amqp from 'amqplib';
 

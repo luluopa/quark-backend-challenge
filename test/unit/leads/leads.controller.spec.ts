@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { LeadsController } from './leads.controller';
-import { LeadsService } from './leads.service';
+import { LeadsController } from '../../../src/leads/leads.controller';
+import { LeadsService } from '../../../src/leads/leads.service';
 
 describe('LeadsController', () => {
   let controller: LeadsController;
