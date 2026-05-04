@@ -1,0 +1,50 @@
+curl -X POST http://localhost:3000/leads \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "Carlos Oliveira",
+    "email": "carlos.oliveira@novocorp.com",
+    "phone": "+5511977773333",
+    "companyName": "Novo Corp",
+    "companyCnpj": "11222333000188",
+    "source": "OTHER"
+  }'
+
+curl http://localhost:3000/leads/<id>
+
+curl -i -X POST http://localhost:3000/leads \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "Joao Duplicado",
+    "email": "carlos.oliveira@novocorp.com",
+    "phone": "+5511999999999",
+    "companyName": "Empresa Duplicada",
+    "companyCnpj": "11222333000188",
+    "source": "WEBSITE"
+  }'
+
+curl -i -X POST http://localhost:3000/leads \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "Teste Erro",
+    "email": "erro@teste.com",
+    "phone": "123",
+    "companyName": "Erro Corp",
+    "companyCnpj": "00000000000000",
+    "source": "INSTAGRAM"
+  }'
+
+curl http://localhost:3000/leads?page=1&limit=10
+
+curl -X POST http://localhost:3000/leads/<id>/enrichment
+
+curl -X POST http://localhost:3000/leads/<id>/classification
+
+curl -X PATCH http://localhost:3000/leads/<id> \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notes": "Cliente entrou em contato querendo fechar negócio rapido"
+  }'
+
+curl http://localhost:3000/leads/export
+
+curl "http://localhost:3000/leads?search=Corp&source=OTHER&page=1&limit=10"
